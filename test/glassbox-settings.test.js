@@ -3,7 +3,7 @@
 const { describe, it } = require("node:test");
 const assert = require("node:assert");
 
-const { DEFAULT_GLASSBOX_SETTINGS, PERMISSION_MODES, normalizeGlassboxSettings, glassboxVoiceShouldSpeak } = require("../src/glassbox-settings");
+const { DEFAULT_GLASSBOX_SETTINGS, PERMISSION_MODES, DISPATCH_BACKENDS, normalizeGlassboxSettings, glassboxVoiceShouldSpeak } = require("../src/glassbox-settings");
 
 describe("glassbox-settings defaults", () => {
   it("defaults every knob to an 'unset' value (false / empty = use env or built-in)", () => {
@@ -37,6 +37,7 @@ describe("glassbox-settings defaults", () => {
       asrApiUrl: "",
       asrApiKey: "",
       whisperModel: "",
+      dispatchBackend: "script",
       permissionMode: "",
       confirmMode: "agent-native",
       systemPrompt: "",
@@ -87,6 +88,7 @@ describe("glassbox-settings normalizeGlassboxSettings", () => {
       asrApiUrl: "https://example.test/asr",
       asrApiKey: "sk-asr",
       whisperModel: "small",
+      dispatchBackend: "agent",
       permissionMode: "acceptEdits",
       confirmMode: "writes-only",
       systemPrompt: "你是新的编排脑",
@@ -120,6 +122,7 @@ describe("glassbox-settings normalizeGlassboxSettings", () => {
     assert.strictEqual(v.asrApiUrl, "https://example.test/asr");
     assert.strictEqual(v.asrApiKey, "sk-asr");
     assert.strictEqual(v.whisperModel, "small");
+    assert.strictEqual(v.dispatchBackend, "agent");
     assert.strictEqual(v.permissionMode, "acceptEdits");
     assert.strictEqual(v.confirmMode, "writes-only");
     assert.strictEqual(v.systemPrompt, "你是新的编排脑");
@@ -155,6 +158,7 @@ describe("glassbox-settings normalizeGlassboxSettings", () => {
       asrModel: false,
       asrApiUrl: [],
       asrApiKey: {},
+      dispatchBackend: "shell",
       permissionMode: "auto",   // not a valid mode
       confirmMode: "nope",      // not a valid mode
       systemPrompt: 123,
@@ -187,6 +191,7 @@ describe("glassbox-settings normalizeGlassboxSettings", () => {
     assert.strictEqual(v.asrModel, "");
     assert.strictEqual(v.asrApiUrl, "");
     assert.strictEqual(v.asrApiKey, "");
+    assert.strictEqual(v.dispatchBackend, "script");
     assert.strictEqual(v.permissionMode, "");
     assert.strictEqual(v.confirmMode, "agent-native");
     assert.strictEqual(v.systemPrompt, "");
@@ -198,6 +203,13 @@ describe("glassbox-settings normalizeGlassboxSettings", () => {
     }
     assert.ok(PERMISSION_MODES.includes("bypassPermissions"));
     assert.ok(PERMISSION_MODES.includes(""));
+  });
+
+  it("accepts every declared dispatch backend", () => {
+    for (const backend of DISPATCH_BACKENDS) {
+      assert.strictEqual(normalizeGlassboxSettings({ dispatchBackend: backend }, { ...DEFAULT_GLASSBOX_SETTINGS }).dispatchBackend, backend);
+    }
+    assert.deepStrictEqual([...DISPATCH_BACKENDS], ["script", "agent"]);
   });
 });
 

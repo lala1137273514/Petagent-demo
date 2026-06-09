@@ -1283,6 +1283,7 @@ describe("prefs glassbox settings (v9)", () => {
       asrApiUrl: "",
       asrApiKey: "",
       whisperModel: "",
+      dispatchBackend: "script",
       permissionMode: "",
       confirmMode: "agent-native",
       systemPrompt: "",
@@ -1291,9 +1292,10 @@ describe("prefs glassbox settings (v9)", () => {
 
   it("normalizes glassbox: keeps valid values, drops bad ones", () => {
     const v = prefs.validate({
-      glassbox: { orchestratorModel: "qwen-max", permissionMode: "auto", voiceEnabled: "yes", systemPrompt: "X" },
+      glassbox: { orchestratorModel: "qwen-max", dispatchBackend: "agent", permissionMode: "auto", voiceEnabled: "yes", systemPrompt: "X" },
     });
     assert.strictEqual(v.glassbox.orchestratorModel, "qwen-max");
+    assert.strictEqual(v.glassbox.dispatchBackend, "agent");
     assert.strictEqual(v.glassbox.permissionMode, ""); // invalid mode → unset
     assert.strictEqual(v.glassbox.voiceEnabled, true); // bad type → default (now on)
     assert.strictEqual(v.glassbox.systemPrompt, "X");

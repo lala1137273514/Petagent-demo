@@ -32,6 +32,7 @@ const BUILTIN_DEFAULTS = Object.freeze({
   asrApiUrl: "",
   asrApiKey: "",
   whisperModel: "small",                // glassbox-asr: CLAWD_WHISPER_MODEL fallback
+  dispatchBackend: "script",            // visible Terminal demo runner
   permissionMode: "default",            // glassbox-dispatch: native/default permission flow
 });
 
@@ -50,6 +51,7 @@ const KNOBS = Object.freeze([
   { key: "asrApiUrl", env: "DASHSCOPE_ASR_ENDPOINT" },
   { key: "asrApiKey", env: ["DASHSCOPE_ASR_API_KEY", "BAILIAN_ASR_API_KEY"] },
   { key: "whisperModel", env: "CLAWD_WHISPER_MODEL" },
+  { key: "dispatchBackend", env: "CLAWD_GLASSBOX_DISPATCH_BACKEND" },
   { key: "permissionMode", env: "CLAWD_DISPATCH_PERMISSION_MODE" },
 ]);
 

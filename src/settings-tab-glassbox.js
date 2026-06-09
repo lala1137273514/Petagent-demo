@@ -25,7 +25,11 @@
       options: [["agent-native", "glassboxConfirmAgentNative"], ["always", "glassboxConfirmAlways"], ["writes-only", "glassboxConfirmWritesOnly"]],
     },
     {
-      key: "permissionMode", labelKey: "glassboxPermissionMode", descKey: "glassboxPermissionModeDesc", type: "select",
+      group: "派活执行", key: "dispatchBackend", label: "执行后端", desc: "Demo 推荐打开可见终端；原始模式会在后台启动 agent CLI。", type: "select",
+      options: [["script", "glassboxDispatchBackendScript"], ["agent", "glassboxDispatchBackendAgent"]],
+    },
+    {
+      group: "派活执行", key: "permissionMode", labelKey: "glassboxPermissionMode", descKey: "glassboxPermissionModeDesc", type: "select",
       options: [
         ["", "glassboxPermissionFollowEnv"],
         ["bypassPermissions", "glassboxPermissionBypass"],

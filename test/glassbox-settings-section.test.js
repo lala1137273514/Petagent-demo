@@ -8,7 +8,7 @@ const {
   GLASSBOX_FIELD_VALIDATORS,
   validateGlassboxField,
 } = require("../src/glassbox-settings-section");
-const { DEFAULT_GLASSBOX_SETTINGS, PERMISSION_MODES, CONFIRM_MODES } = require("../src/glassbox-settings");
+const { DEFAULT_GLASSBOX_SETTINGS, PERMISSION_MODES, CONFIRM_MODES, DISPATCH_BACKENDS } = require("../src/glassbox-settings");
 
 describe("buildGlassboxSettingsSpec — shape", () => {
   it("returns a non-empty array of row specs", () => {
@@ -23,6 +23,7 @@ describe("buildGlassboxSettingsSpec — shape", () => {
       "voiceEnabled",
       "wakeWordEnabled",
       "confirmMode",
+      "dispatchBackend",
       "permissionMode",
       "orchestratorModel",
       "orchestratorApiUrl",
@@ -135,6 +136,13 @@ describe("buildGlassboxSettingsSpec — per-row contracts", () => {
     assert.ok(/[一-鿿]/.test(unset.label), "unset option label should be Chinese");
   });
 
+  it("dispatchBackend is a select whose option values match DISPATCH_BACKENDS exactly", () => {
+    const row = rowFor("dispatchBackend");
+    assert.strictEqual(row.type, "select");
+    assert.ok(Array.isArray(row.options));
+    assert.deepStrictEqual(row.options.map((o) => o.value), [...DISPATCH_BACKENDS]);
+  });
+
   it("whisperModel is a select with non-empty option values (plus an unset choice)", () => {
     const row = rowFor("whisperModel");
     assert.strictEqual(row.type, "select");
@@ -217,6 +225,12 @@ describe("validateGlassboxField — strict, let-it-crash (no silent fallback)", 
   it("permissionMode accepts only declared modes (including '' = unset)", () => {
     for (const m of PERMISSION_MODES) assert.strictEqual(validateGlassboxField("permissionMode", m).status, "ok");
     assert.strictEqual(validateGlassboxField("permissionMode", "auto").status, "error");
+  });
+
+  it("dispatchBackend accepts only declared backends", () => {
+    for (const backend of DISPATCH_BACKENDS) assert.strictEqual(validateGlassboxField("dispatchBackend", backend).status, "ok");
+    assert.strictEqual(validateGlassboxField("dispatchBackend", "terminal").status, "error");
+    assert.strictEqual(validateGlassboxField("dispatchBackend", "").status, "error");
   });
 
   it("whisperModel accepts the spec's offered values and rejects junk", () => {

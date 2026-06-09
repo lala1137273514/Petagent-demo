@@ -11,6 +11,7 @@
 
 const PERMISSION_MODES = Object.freeze(["", "bypassPermissions", "acceptEdits", "plan", "default"]);
 const CONFIRM_MODES = Object.freeze(["agent-native", "always", "writes-only"]);
+const DISPATCH_BACKENDS = Object.freeze(["script", "agent"]);
 
 const DEFAULT_GLASSBOX_SETTINGS = Object.freeze({
   voiceEnabled: true,     // master TTS switch — ON by default (this build's core); toggle off to mute narration
@@ -42,6 +43,7 @@ const DEFAULT_GLASSBOX_SETTINGS = Object.freeze({
   asrApiUrl: "",          // reserved remote ASR endpoint override
   asrApiKey: "",          // "" = DASHSCOPE_ASR_API_KEY / shared Bailian key
   whisperModel: "",       // "" = CLAWD_WHISPER_MODEL / base
+  dispatchBackend: "script", // script = visible Terminal demo runner; agent = headless CLI spawn
   permissionMode: "",     // "" = CLAWD_DISPATCH_PERMISSION_MODE / bypassPermissions
   confirmMode: "agent-native", // agent-native | always | writes-only
   systemPrompt: "",       // "" = the externalized prompt file (glassbox-prompts)
@@ -90,6 +92,7 @@ function normalizeGlassboxSettings(value, defaultsValue) {
     asrApiUrl: _str(value.asrApiUrl),
     asrApiKey: _str(value.asrApiKey),
     whisperModel: _str(value.whisperModel),
+    dispatchBackend: DISPATCH_BACKENDS.includes(value.dispatchBackend) ? value.dispatchBackend : base.dispatchBackend,
     permissionMode: PERMISSION_MODES.includes(value.permissionMode) ? value.permissionMode : base.permissionMode,
     confirmMode: CONFIRM_MODES.includes(value.confirmMode) ? value.confirmMode : base.confirmMode,
     systemPrompt: _str(value.systemPrompt),
@@ -105,4 +108,4 @@ function glassboxVoiceShouldSpeak({ env, glassbox } = {}) {
   return DEFAULT_GLASSBOX_SETTINGS.voiceEnabled;
 }
 
-module.exports = { DEFAULT_GLASSBOX_SETTINGS, PERMISSION_MODES, CONFIRM_MODES, normalizeGlassboxSettings, glassboxVoiceShouldSpeak };
+module.exports = { DEFAULT_GLASSBOX_SETTINGS, PERMISSION_MODES, CONFIRM_MODES, DISPATCH_BACKENDS, normalizeGlassboxSettings, glassboxVoiceShouldSpeak };

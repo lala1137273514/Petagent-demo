@@ -1716,11 +1716,13 @@ if (glassboxEnabled) {
     // Phase 2 remote-control flow (REMOTE-CONTROL-SPEC). The light model (qwen
     // via Bailian, reuse BAILIAN_API_KEY) decides dispatch/chat; capture grabs
     // the foreground window + an on-demand screenshot; dispatch spawns a fresh
-    // `claude -p`/`-r` or `codex exec`. All side effects wired here; the flow
+    // `claude -p`/`-r`, `codex exec`, or the visible demo Terminal runner.
+    // All side effects wired here; the flow
     // logic lives (and is unit-tested) in glassbox-remote.js.
     const glassboxOrchestrator = require("./glassbox-orchestrator");
     const glassboxCapture = require("./glassbox-capture");
     const glassboxDispatch = require("./glassbox-dispatch");
+    const glassboxScriptDispatch = require("./glassbox-script-dispatch");
     const hasCommand = (name) => {
       try {
         const r = require("node:child_process").spawnSync(process.platform === "win32" ? "where" : "command", process.platform === "win32" ? [name] : ["-v", name], {
@@ -1743,6 +1745,13 @@ if (glassboxEnabled) {
     const getDefaultDispatchAgent = () => {
       if (hasCommand("codex") || resolveCodexBin() !== "codex") return "codex";
       return "claude";
+    };
+    const resolveDemoDispatchRunnerPath = () => {
+      const pathMod = require("node:path");
+      if (app && app.isPackaged) {
+        return pathMod.join(process.resourcesPath, "app.asar.unpacked", "scripts", "clawd-demo-dispatch.sh");
+      }
+      return pathMod.join(__dirname, "..", "scripts", "clawd-demo-dispatch.sh");
     };
 
     const resolveForegroundWindow = async () => {
@@ -1808,11 +1817,18 @@ if (glassboxEnabled) {
       getForegroundWindow: resolveForegroundWindow,
       takeScreenshot: captureScreenshot,
       dispatchFn: (plan, o) => {
+        const cfg = _glassboxCfg();
+        if (cfg.dispatchBackend === "script") {
+          return glassboxScriptDispatch.dispatchScript(plan, {
+            runnerPath: resolveDemoDispatchRunnerPath(),
+            codexBin: resolveCodexBin(),
+          });
+        }
         // Narrate the dispatched run line-by-line. Best-effort: a narration
         // error must never break the dispatch (glue isolates; core is pure).
         try { glassboxNarrator && glassboxNarrator.reset(); } catch {}
         return glassboxDispatch.dispatch(
-          { ...plan, permissionMode: _glassboxCfg().permissionMode },
+          { ...plan, permissionMode: cfg.permissionMode },
           {
             codexBin: resolveCodexBin(),
             // Real agent activity → stream-json parse → narrator → card (the
@@ -1886,7 +1902,9 @@ if (glassboxEnabled) {
       getDefaultAgent: getDefaultDispatchAgent,
       onPhase: (phase) => relayGlassboxPhase(phase),
       shouldConfirm: (decision) => {
-        // Direction 2b: confirm policy from settings (default "always").
+        // Visible Terminal dispatch always has one explicit user checkpoint.
+        if (_glassboxCfg().dispatchBackend === "script") return true;
+        // Direction 2b: confirm policy from settings.
         const snap = (_settingsController && typeof _settingsController.getSnapshot === "function")
           ? _settingsController.getSnapshot() : null;
         const gb = (snap && snap.glassbox) || {};

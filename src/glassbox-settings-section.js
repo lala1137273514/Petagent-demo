@@ -18,6 +18,7 @@ const {
   DEFAULT_GLASSBOX_SETTINGS,
   PERMISSION_MODES,
   CONFIRM_MODES,
+  DISPATCH_BACKENDS,
 } = require("./glassbox-settings");
 
 // Whisper model sizes the bundled ASR sidecar understands. "" = unset → fall
@@ -39,6 +40,11 @@ const CONFIRM_MODE_LABELS = Object.freeze({
   "agent-native": "交给 agent 原生确认",
   always: "每次派活前确认",
   "writes-only": "仅写操作时确认",
+});
+
+const DISPATCH_BACKEND_LABELS = Object.freeze({
+  script: "可见终端脚本（Demo）",
+  agent: "后台 Agent CLI",
 });
 
 const WHISPER_MODEL_LABELS = Object.freeze({
@@ -66,6 +72,12 @@ function buildGlassboxSettingsSpec() {
       label: "执行确认策略",
       type: "select",
       options: _options(CONFIRM_MODES, CONFIRM_MODE_LABELS),
+    },
+    {
+      key: "dispatchBackend",
+      label: "派活执行后端",
+      type: "select",
+      options: _options(DISPATCH_BACKENDS, DISPATCH_BACKEND_LABELS),
     },
     {
       key: "permissionMode",
@@ -173,6 +185,7 @@ const GLASSBOX_FIELD_VALIDATORS = Object.freeze({
   asrApiUrl: okString("asrApiUrl"),
   asrApiKey: okString("asrApiKey"),
   whisperModel: okEnum("whisperModel", WHISPER_MODELS),
+  dispatchBackend: okEnum("dispatchBackend", DISPATCH_BACKENDS),
   permissionMode: okEnum("permissionMode", PERMISSION_MODES),
   confirmMode: okEnum("confirmMode", CONFIRM_MODES),
   systemPrompt: okString("systemPrompt"),

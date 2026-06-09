@@ -26,6 +26,7 @@ describe("glassbox-config built-in defaults", () => {
       asrApiUrl: "",
       asrApiKey: "",
       whisperModel: "small",
+      dispatchBackend: "script",
       permissionMode: "default",
     });
   });
@@ -56,6 +57,7 @@ describe("glassbox-config env layer", () => {
       DASHSCOPE_ASR_ENDPOINT: "https://asr.example/transcribe",
       DASHSCOPE_ASR_API_KEY: "sk-asr",
       CLAWD_WHISPER_MODEL: "base",
+      CLAWD_GLASSBOX_DISPATCH_BACKEND: "agent",
       CLAWD_DISPATCH_PERMISSION_MODE: "acceptEdits",
     };
     const cfg = resolveGlassboxConfig({}, env);
@@ -70,6 +72,7 @@ describe("glassbox-config env layer", () => {
     assert.strictEqual(cfg.asrApiUrl, "https://asr.example/transcribe");
     assert.strictEqual(cfg.asrApiKey, "sk-asr");
     assert.strictEqual(cfg.whisperModel, "base");
+    assert.strictEqual(cfg.dispatchBackend, "agent");
     assert.strictEqual(cfg.permissionMode, "acceptEdits");
     // ttsVoice has no env var; it stays on the built-in default.
     assert.strictEqual(cfg.ttsVoice, "Cherry");
@@ -91,6 +94,7 @@ describe("glassbox-config precedence settings > env > default", () => {
       asrApiUrl: "https://settings.example/asr",
       asrApiKey: "sk-settings-asr",
       whisperModel: "medium",
+      dispatchBackend: "agent",
       permissionMode: "plan",
     };
     const env = {
@@ -114,6 +118,7 @@ describe("glassbox-config precedence settings > env > default", () => {
       asrApiUrl: "https://settings.example/asr",
       asrApiKey: "sk-settings-asr",
       whisperModel: "medium",
+      dispatchBackend: "agent",
       permissionMode: "plan",
     });
   });
@@ -126,6 +131,7 @@ describe("glassbox-config precedence settings > env > default", () => {
       DASHSCOPE_CHAT_ENDPOINT: "https://env.example/v1/chat/completions",
       DASHSCOPE_API_KEY: "sk-env",
       CLAWD_DISPATCH_PERMISSION_MODE: "plan",
+      CLAWD_GLASSBOX_DISPATCH_BACKEND: "agent",
     };
     assert.deepStrictEqual(resolveGlassboxConfig(settings, env), {
       hotkey: "Alt+Q",                 // env
@@ -140,6 +146,7 @@ describe("glassbox-config precedence settings > env > default", () => {
       asrApiUrl: "",
       asrApiKey: "",
       whisperModel: "small",           // built-in default
+      dispatchBackend: "agent",        // env
       permissionMode: "plan",          // env
     });
   });
@@ -147,7 +154,7 @@ describe("glassbox-config precedence settings > env > default", () => {
 
 describe("glassbox-config bad / empty values", () => {
   it("treats empty-string and whitespace-only settings as unset (fall through)", () => {
-    const settings = { hotkey: "", orchestratorModel: "   ", orchestratorApiUrl: "", orchestratorApiKey: " ", ttsModel: "", ttsApiUrl: " ", ttsVoice: "\t", ttsApiKey: "", asrModel: "", asrApiUrl: "", asrApiKey: "", whisperModel: "", permissionMode: "" };
+    const settings = { hotkey: "", orchestratorModel: "   ", orchestratorApiUrl: "", orchestratorApiKey: " ", ttsModel: "", ttsApiUrl: " ", ttsVoice: "\t", ttsApiKey: "", asrModel: "", asrApiUrl: "", asrApiKey: "", whisperModel: "", dispatchBackend: "", permissionMode: "" };
     const env = { CLAWD_GLASSBOX_HOTKEY: "Alt+Z", CLAWD_ORCHESTRATOR_MODEL: "qwen-turbo", DASHSCOPE_API_KEY: "sk-env" };
     const cfg = resolveGlassboxConfig(settings, env);
     assert.strictEqual(cfg.hotkey, "Alt+Z");            // env, settings was empty
@@ -161,12 +168,13 @@ describe("glassbox-config bad / empty values", () => {
     assert.strictEqual(cfg.asrApiUrl, "");
     assert.strictEqual(cfg.asrApiKey, "");
     assert.strictEqual(cfg.whisperModel, "small");       // default
+    assert.strictEqual(cfg.dispatchBackend, "script");   // default
     assert.strictEqual(cfg.permissionMode, "default"); // default
   });
 
   it("ignores non-string settings values and empty/whitespace env (fall through)", () => {
-    const settings = { hotkey: 42, orchestratorModel: null, orchestratorApiUrl: {}, orchestratorApiKey: [], ttsModel: null, ttsApiUrl: 7, ttsVoice: {}, ttsApiKey: 1, asrModel: false, asrApiUrl: [], asrApiKey: {}, whisperModel: [], permissionMode: true };
-    const env = { CLAWD_GLASSBOX_HOTKEY: "   ", CLAWD_DISPATCH_PERMISSION_MODE: "" };
+    const settings = { hotkey: 42, orchestratorModel: null, orchestratorApiUrl: {}, orchestratorApiKey: [], ttsModel: null, ttsApiUrl: 7, ttsVoice: {}, ttsApiKey: 1, asrModel: false, asrApiUrl: [], asrApiKey: {}, whisperModel: [], dispatchBackend: true, permissionMode: true };
+    const env = { CLAWD_GLASSBOX_HOTKEY: "   ", CLAWD_GLASSBOX_DISPATCH_BACKEND: "", CLAWD_DISPATCH_PERMISSION_MODE: "" };
     assert.deepStrictEqual(resolveGlassboxConfig(settings, env), { ...BUILTIN_DEFAULTS });
   });
 

@@ -136,6 +136,7 @@
       "assets/dock-icon.png",
       "assets/tray-icon*.png",
       "hooks/**/*",
+      "scripts/clawd-demo-dispatch.sh",
       "extensions/**/*",
       "agents/**/*",
       "themes/**/*",
@@ -144,6 +145,7 @@
     "asarUnpack": [
       "assets/svg/**/*",
       "hooks/**/*",
+      "scripts/clawd-demo-dispatch.sh",
       "extensions/**/*",
       "themes/**/*"
     ],
