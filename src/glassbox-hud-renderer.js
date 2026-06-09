@@ -1,7 +1,7 @@
 "use strict";
 
 // Pet-adjacent HUD renderer: three compact cards (agent status, usage, actions).
-// Input stays outside the HUD; settings/model entrances are icon buttons.
+// Input stays outside the HUD; the toolbar is reserved for distinct quick actions.
 
 const { ipcRenderer } = require("electron");
 const { formatPct, formatCountdown, usageColor } = require("./quota");
@@ -21,21 +21,21 @@ let hudInteractive = null;
 
 const ICONS = {
   chat: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 9h8"/><path d="M8 13h5"/></svg>`,
+  terminal: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="m7 9 3 3-3 3"/><path d="M13 15h4"/></svg>`,
+  folder: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>`,
+  screenshot: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 8V6a2 2 0 0 1 2-2h2"/><path d="M16 4h2a2 2 0 0 1 2 2v2"/><path d="M20 16v2a2 2 0 0 1-2 2h-2"/><path d="M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg>`,
   dashboard: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v5H4z"/><path d="M4 14h7v5H4z"/><path d="M15 14h5v5h-5z"/></svg>`,
   quota: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 16v-5"/><path d="M12 16V8"/><path d="M16 16v-3"/></svg>`,
-  llm: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="7" width="14" height="12" rx="2"/><path d="M9 7V4h6v3"/><path d="M9 12h.01"/><path d="M15 12h.01"/><path d="M10 16h4"/></svg>`,
-  tts: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14v-4h3l4-3v10l-4-3z"/><path d="M16 9a4 4 0 0 1 0 6"/><path d="M18.5 6.5a7.5 7.5 0 0 1 0 11"/></svg>`,
-  asr: `<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/><path d="M8 21h8"/></svg>`,
   settings: `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.04.04a2 2 0 1 1-2.83 2.83l-.04-.04a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 1 1-4 0v-.08a1.7 1.7 0 0 0-1.04-1.56 1.7 1.7 0 0 0-1.87.34l-.04.04a2 2 0 1 1-2.83-2.83l.04-.04A1.7 1.7 0 0 0 4.6 15 1.7 1.7 0 0 0 3.08 14H3a2 2 0 1 1 0-4h.08A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.87l-.04-.04a2 2 0 1 1 2.83-2.83l.04.04A1.7 1.7 0 0 0 9 4.6 1.7 1.7 0 0 0 10 3.08V3a2 2 0 1 1 4 0v.08A1.7 1.7 0 0 0 15 4.6a1.7 1.7 0 0 0 1.87-.34l.04-.04a2 2 0 1 1 2.83 2.83l-.04.04A1.7 1.7 0 0 0 19.4 9c.25.58.83.96 1.46 1H21a2 2 0 1 1 0 4h-.08A1.7 1.7 0 0 0 19.4 15z"/></svg>`,
 };
 
 const BUTTONS = [
-  { id: "chat", icon: ICONS.chat, tip: "输入" },
-  { id: "dashboard", icon: ICONS.dashboard, tip: "会话总览" },
+  { id: "chat", icon: ICONS.chat, tip: "输入 / 派活" },
+  { id: "terminal", icon: ICONS.terminal, tip: "打开终端" },
+  { id: "folder", icon: ICONS.folder, tip: "打开项目文件夹" },
+  { id: "screenshot", icon: ICONS.screenshot, tip: "截图并复制路径" },
   { id: "quota", icon: ICONS.quota, tip: "刷新用量" },
-  { id: "llm", icon: ICONS.llm, tip: "LLM 设置" },
-  { id: "tts", icon: ICONS.tts, tip: "TTS 设置" },
-  { id: "asr", icon: ICONS.asr, tip: "ASR 设置" },
+  { id: "dashboard", icon: ICONS.dashboard, tip: "会话总览" },
   { id: "settings", icon: ICONS.settings, tip: "设置" },
 ];
 

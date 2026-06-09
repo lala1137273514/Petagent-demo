@@ -59,6 +59,7 @@ const {
 const { focusCodexThreadTarget } = require("./session-focus-handoff");
 const { isSessionInProgress } = require("./state-session-snapshot");
 const { getAllAgents } = require("../agents/registry");
+const glassboxAgentLauncher = require("./glassbox-agent-launcher");
 
 // ── Autoplay policy: allow sound playback without user gesture ──
 // MUST be set before any BrowserWindow is created (before app.whenReady)
@@ -1316,6 +1317,131 @@ function openSettingsTab(tabId) {
     setTimeout(send, 80);
   }
 }
+
+function normalizeGlassboxDirectory(value) {
+  const v = String(value == null ? "" : value).trim();
+  if (!v) return null;
+  try {
+    const stat = fs.statSync(v);
+    if (stat.isDirectory()) return v;
+    if (stat.isFile()) return path.dirname(v);
+  } catch {}
+  return v;
+}
+
+function firstExistingGlassboxDirectory(candidates) {
+  for (const candidate of candidates) {
+    const v = String(candidate == null ? "" : candidate).trim();
+    if (!v) continue;
+    try {
+      const stat = fs.statSync(v);
+      if (stat.isDirectory()) return v;
+      if (stat.isFile()) return path.dirname(v);
+    } catch {}
+  }
+  return null;
+}
+
+function getGlassboxDefaultCwd() {
+  try {
+    const snap = (_state && typeof _state.buildSessionSnapshot === "function") ? _state.buildSessionSnapshot() : null;
+    const sessions = (snap && snap.sessions) || [];
+    const lastId = snap && snap.hudLastSessionId;
+    const byLast = lastId && sessions.find((s) => s && s.id === lastId && s.cwd);
+    if (byLast && byLast.cwd) return normalizeGlassboxDirectory(byLast.cwd);
+    const withCwd = sessions.filter((s) => s && s.cwd);
+    if (withCwd.length) return normalizeGlassboxDirectory(withCwd[withCwd.length - 1].cwd);
+  } catch {}
+  const envCwd = process.env.CLAWD_GLASSBOX_DEFAULT_CWD;
+  const cwd = firstExistingGlassboxDirectory([
+    envCwd,
+    (() => { try { return app.getAppPath(); } catch { return null; } })(),
+    process.cwd(),
+  ]);
+  if (cwd) return cwd;
+  try { return app.getPath("home"); } catch {}
+  try { return require("os").homedir(); } catch {}
+  return null;
+}
+
+async function captureGlassboxScreenshot() {
+  const { desktopCapturer } = require("electron");
+  const primary = screen.getPrimaryDisplay();
+  const maxW = 1600;
+  const scale = Math.min(1, maxW / (primary.size.width || maxW));
+  const thumbnailSize = {
+    width: Math.round((primary.size.width || maxW) * scale),
+    height: Math.round((primary.size.height || 900) * scale),
+  };
+  const sources = await Promise.race([
+    desktopCapturer.getSources({ types: ["screen"], thumbnailSize }),
+    new Promise((_, rej) => setTimeout(() => rej(new Error("screenshot timed out")), 4000)),
+  ]);
+  const src = sources.find((s) => String(s.id).startsWith("screen")) || sources[0];
+  if (!src || !src.thumbnail) throw new Error("desktopCapturer: no screen source");
+  const file = path.join(require("os").tmpdir(), `clawd-shot-${process.pid}-${Date.now()}.png`);
+  fs.writeFileSync(file, src.thumbnail.toPNG());
+  return file;
+}
+
+function narrateGlassboxHudAction(text) {
+  try { applyNarratorEffect({ source: "chat", kind: "reply", text }); } catch {}
+}
+
+function openGlassboxTerminal() {
+  try {
+    const cwd = getGlassboxDefaultCwd();
+    const handle = glassboxAgentLauncher.openAgent("terminal", { cwd });
+    if (handle && typeof handle.onError === "function") {
+      handle.onError((err) => {
+        sessionLog(`glassbox-hud: terminal failed: ${err && err.message}`);
+        narrateGlassboxHudAction("终端没打开，你看一下系统权限。");
+      });
+    }
+    narrateGlassboxHudAction("终端已打开，位置是当前项目。");
+    return handle;
+  } catch (err) {
+    sessionLog(`glassbox-hud: terminal failed: ${err && err.message}`);
+    narrateGlassboxHudAction("终端没打开，你看一下系统权限。");
+    return null;
+  }
+}
+
+async function openGlassboxFolder() {
+  const cwd = getGlassboxDefaultCwd();
+  if (!cwd) {
+    narrateGlassboxHudAction("我还不知道项目文件夹在哪里。");
+    return false;
+  }
+  try {
+    const err = await shell.openPath(cwd);
+    if (err) {
+      sessionLog(`glassbox-hud: open folder failed: ${err}`);
+      narrateGlassboxHudAction("文件夹没打开，你看一下路径是否还在。");
+      return false;
+    }
+    narrateGlassboxHudAction("项目文件夹已打开。");
+    return true;
+  } catch (err) {
+    sessionLog(`glassbox-hud: open folder failed: ${err && err.message}`);
+    narrateGlassboxHudAction("文件夹没打开，你看一下系统权限。");
+    return false;
+  }
+}
+
+async function captureHudScreenshot() {
+  try {
+    const file = await captureGlassboxScreenshot();
+    try { clipboard.writeText(file); } catch {}
+    narrateGlassboxHudAction("截图好了，路径已复制到剪贴板。");
+    return file;
+  } catch (err) {
+    sessionLog(`glassbox-hud: screenshot failed: ${err && err.message}`);
+    narrateGlassboxHudAction("截图失败，可能需要打开屏幕录制权限。");
+    return null;
+  }
+}
+
 ipcMain.on("pet-hover-enter", () => { try { if (_glassboxHud) _glassboxHud.show(); } catch {} });
 ipcMain.on("pet-hover-leave", () => { try { if (_glassboxHud) _glassboxHud.scheduleDismiss(); } catch {} });
 ipcMain.on("glassbox-hud-hover", (_e, over) => { try { if (_glassboxHud) { if (over) _glassboxHud.cancelDismiss(); else _glassboxHud.scheduleDismiss(); } } catch {} });
@@ -1323,14 +1449,12 @@ ipcMain.on("glassbox-hud-action", (_e, id) => {
   try {
     switch (id) {
       case "chat": toggleGlassboxInput(); break;
+      case "terminal": openGlassboxTerminal(); break;
+      case "folder": openGlassboxFolder(); break;
+      case "screenshot": captureHudScreenshot(); break;
       case "quota": if (_glassboxHud) { _glassboxHud.show(); _glassboxHud.refreshUsage(true); } break;
       case "dashboard": showDashboard(); break;
-      case "llm":
-      case "tts":
-      case "asr":
-        openSettingsTab("glassbox");
-        break;
-      case "settings": settingsWindowRuntime.open(); break;
+      case "settings": openSettingsTab("glassbox"); break;
     }
   } catch {}
 });
@@ -1723,7 +1847,6 @@ if (glassboxEnabled) {
     const glassboxCapture = require("./glassbox-capture");
     const glassboxDispatch = require("./glassbox-dispatch");
     const glassboxScriptDispatch = require("./glassbox-script-dispatch");
-    const glassboxAgentLauncher = require("./glassbox-agent-launcher");
     const hasCommand = (name) => {
       try {
         const r = require("node:child_process").spawnSync(process.platform === "win32" ? "where" : "command", process.platform === "win32" ? [name] : ["-v", name], {
@@ -1770,32 +1893,7 @@ if (glassboxEnabled) {
       };
     };
 
-    const captureScreenshot = async (_window) => {
-      const { desktopCapturer } = require("electron");
-      const primary = screen.getPrimaryDisplay();
-      // SCREEN ONLY: enumerating every window at full res made WGC time out per
-      // window (PrintWindow/BitBlt failures, 5s/frame). One screen source at a
-      // modest size is fast and robust; it still contains the foreground window.
-      const maxW = 1600;
-      const scale = Math.min(1, maxW / (primary.size.width || maxW));
-      const thumbnailSize = {
-        width: Math.round((primary.size.width || maxW) * scale),
-        height: Math.round((primary.size.height || 900) * scale),
-      };
-      // Hard timeout so a flaky capturer can never hang the dispatch flow.
-      const sources = await Promise.race([
-        desktopCapturer.getSources({ types: ["screen"], thumbnailSize }),
-        new Promise((_, rej) => setTimeout(() => rej(new Error("screenshot timed out")), 4000)),
-      ]);
-      const src = sources.find((s) => String(s.id).startsWith("screen")) || sources[0];
-      if (!src || !src.thumbnail) throw new Error("desktopCapturer: no screen source");
-      const osMod2 = require("os");
-      const pathMod2 = require("path");
-      const fsMod2 = require("fs");
-      const file = pathMod2.join(osMod2.tmpdir(), `clawd-shot-${process.pid}-${Date.now()}.png`);
-      fsMod2.writeFileSync(file, src.thumbnail.toPNG());
-      return file;
-    };
+    const captureScreenshot = async (_window) => captureGlassboxScreenshot();
 
     const { GlassboxRemote } = require("./glassbox-remote");
     glassboxRemote = new GlassboxRemote({
@@ -1887,22 +1985,8 @@ if (glassboxEnabled) {
           && _perm.getActionablePermissions().length > 0,
       }),
       getDefaultCwd: () => {
-        // Prefer the most-recent tracked session's cwd (your current project),
-        // then an explicit override, then the home dir — so a dispatch never
-        // dead-ends on "which directory?" (the confirm dialog still gates it).
-        try {
-          const snap = (_state && typeof _state.buildSessionSnapshot === "function") ? _state.buildSessionSnapshot() : null;
-          const sessions = (snap && snap.sessions) || [];
-          const lastId = snap && snap.hudLastSessionId;
-          const byLast = lastId && sessions.find((s) => s && s.id === lastId && s.cwd);
-          if (byLast && byLast.cwd) return byLast.cwd;
-          const withCwd = sessions.filter((s) => s && s.cwd);
-          if (withCwd.length) return withCwd[withCwd.length - 1].cwd;
-        } catch {}
-        const envCwd = process.env.CLAWD_GLASSBOX_DEFAULT_CWD;
-        if (envCwd && envCwd.trim()) return envCwd.trim();
-        try { return require("os").homedir(); } catch {}
-        return null;
+        // Prefer the most-recent tracked session's cwd, then the demo app dir.
+        return getGlassboxDefaultCwd();
       },
       getDefaultAgent: getDefaultDispatchAgent,
       onPhase: (phase) => relayGlassboxPhase(phase),
