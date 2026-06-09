@@ -63,6 +63,8 @@ function createHarness({ isMac = false, sendState = {} } = {}) {
         exitMiniMode: () => apiCalls.push(["exitMiniMode"]),
         showDashboard: () => apiCalls.push(["showDashboard"]),
         revealSessionHud: () => apiCalls.push(["revealSessionHud"]),
+        petHoverEnter: () => apiCalls.push(["petHoverEnter"]),
+        petHoverLeave: () => apiCalls.push(["petHoverLeave"]),
         startDragReaction: (direction) => apiCalls.push(["startDragReaction", direction]),
         endDragReaction: () => apiCalls.push(["endDragReaction"]),
         playClickReaction: (svg, d) => apiCalls.push(["playClickReaction", svg, d]),
@@ -93,17 +95,50 @@ function createHarness({ isMac = false, sendState = {} } = {}) {
     apiHandlers.stateSync({ currentState: "idle", miniMode: false, dndEnabled: false });
   }
 
-  function pointerup({ button = 0, ctrlKey = false, metaKey = false, clientX = 100 } = {}) {
-    fakeDocument._dispatch("pointerup", { button, ctrlKey, metaKey, clientX });
+  function eventPayload(payload = {}) {
+    return {
+      preventDefault: () => apiCalls.push(["preventDefault"]),
+      stopPropagation: () => apiCalls.push(["stopPropagation"]),
+      ...payload,
+    };
   }
 
-  function pointerdown({ button = 0, pointerId = 1, clientX = 100, clientY = 100 } = {}) {
+  function pointerup({ button = 0, ctrlKey = false, metaKey = false, clientX = 100 } = {}) {
+    fakeDocument._dispatch("pointerup", eventPayload({ button, ctrlKey, metaKey, clientX }));
+  }
+
+  function pointerdown({
+    button = 0,
+    pointerId = 1,
+    clientX = 100,
+    clientY = 100,
+    ctrlKey = false,
+    metaKey = false,
+  } = {}) {
     const cb = area.listeners.get("pointerdown");
-    if (cb) cb({ button, pointerId, clientX, clientY });
+    if (cb) cb(eventPayload({ button, pointerId, clientX, clientY, ctrlKey, metaKey }));
   }
 
   function pointermove({ clientX = 100, clientY = 100 } = {}) {
     fakeDocument._dispatch("pointermove", { clientX, clientY });
+  }
+
+  function pointerenter() {
+    const cb = area.listeners.get("pointerenter");
+    if (cb) cb(eventPayload());
+  }
+
+  function pointerleave() {
+    const cb = area.listeners.get("pointerleave");
+    if (cb) cb(eventPayload());
+  }
+
+  function contextmenu({ button = 2 } = {}) {
+    fakeDocument._dispatch("contextmenu", eventPayload({ button }));
+  }
+
+  function auxclick({ button = 2 } = {}) {
+    fakeDocument._dispatch("auxclick", eventPayload({ button }));
   }
 
   function fireTimer(predicate) {
@@ -114,7 +149,21 @@ function createHarness({ isMac = false, sendState = {} } = {}) {
     return true;
   }
 
-  return { apiCalls, apiHandlers, pointerdown, pointermove, pointerup, fireTimer, timers, area, context };
+  return {
+    apiCalls,
+    apiHandlers,
+    pointerdown,
+    pointermove,
+    pointerup,
+    pointerenter,
+    pointerleave,
+    contextmenu,
+    auxclick,
+    fireTimer,
+    timers,
+    area,
+    context,
+  };
 }
 
 describe("hit-renderer input layer", () => {
@@ -148,6 +197,28 @@ describe("hit-renderer input layer", () => {
     const names = h.apiCalls.map((c) => c[0]);
     assert.ok(!names.includes("showDashboard"), "mac Ctrl+click must not trigger Dashboard");
     assert.ok(!names.includes("revealSessionHud"), "mac Ctrl+click must not reveal HUD");
+  });
+
+  it("opens the context menu from right pointerdown and suppresses duplicate native contextmenu", () => {
+    const h = createHarness();
+    h.pointerdown({ button: 2 });
+    h.contextmenu({ button: 2 });
+
+    assert.deepStrictEqual(
+      h.apiCalls.filter((call) => call[0] === "showContextMenu"),
+      [["showContextMenu"]]
+    );
+  });
+
+  it("opens the context menu for macOS Ctrl-click without starting a drag", () => {
+    const h = createHarness({ isMac: true });
+    h.pointerdown({ button: 0, ctrlKey: true });
+    h.pointerup({ button: 0, ctrlKey: true });
+    const names = h.apiCalls.map((c) => c[0]);
+
+    assert.ok(names.includes("showContextMenu"));
+    assert.ok(!names.includes("dragLock"));
+    assert.ok(!names.includes("showDashboard"));
   });
 
   it("miniMode + plain click calls exitMiniMode (not reveal)", () => {
@@ -227,6 +298,26 @@ describe("hit-renderer input layer", () => {
         ["startDragReaction", "left"],
         ["startDragReaction", "right"],
       ]
+    );
+  });
+
+  it("keeps hover stable across quick enter/leave bounces", () => {
+    const h = createHarness();
+    h.pointerenter();
+    h.pointerleave();
+    h.pointerenter();
+    h.fireTimer((t) => t.ms === 140);
+
+    assert.deepStrictEqual(
+      h.apiCalls.filter((call) => call[0] === "petHoverEnter" || call[0] === "petHoverLeave"),
+      [["petHoverEnter"]]
+    );
+
+    h.pointerleave();
+    h.fireTimer((t) => t.ms === 140);
+    assert.deepStrictEqual(
+      h.apiCalls.filter((call) => call[0] === "petHoverEnter" || call[0] === "petHoverLeave"),
+      [["petHoverEnter"], ["petHoverLeave"]]
     );
   });
 });

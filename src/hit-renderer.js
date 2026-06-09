@@ -48,7 +48,12 @@ const DRAG_THRESHOLD = 3;
 let isReacting = false;
 let isDragReacting = false;
 let lastPetHoverSignalAt = 0;
-const PET_HOVER_SIGNAL_MS = 220;
+let petHovering = false;
+let petHoverLeaveTimer = null;
+let lastContextMenuSignalAt = 0;
+const PET_HOVER_SIGNAL_MS = 180;
+const PET_HOVER_LEAVE_DELAY_MS = 140;
+const CONTEXT_MENU_COOLDOWN_MS = 350;
 
 // Cancel signal from main (e.g. state change)
 window.hitAPI.onCancelReaction(() => {
@@ -75,6 +80,10 @@ function clearQueuedDragMove() {
 
 // --- Pointer handlers ---
 area.addEventListener("pointerdown", (e) => {
+  if (e.button === 2 || (isMac && e.button === 0 && e.ctrlKey && !e.metaKey)) {
+    requestContextMenu(e);
+    return;
+  }
   if (e.button === 0) {
     if (miniMode) { didDrag = false; return; }
     area.setPointerCapture(e.pointerId);
@@ -254,16 +263,47 @@ function endDragReaction() {
 }
 
 // --- Right-click context menu ---
-document.addEventListener("contextmenu", (e) => {
-  e.preventDefault();
-  window.hitAPI.showContextMenu();
+function requestContextMenu(event) {
+  if (event && typeof event.preventDefault === "function") event.preventDefault();
+  if (event && typeof event.stopPropagation === "function") event.stopPropagation();
+  stopDrag();
+  resetClickAccumulator();
+
+  const t = Date.now();
+  if (t - lastContextMenuSignalAt < CONTEXT_MENU_COOLDOWN_MS) return;
+  lastContextMenuSignalAt = t;
+  if (window.hitAPI && window.hitAPI.showContextMenu) window.hitAPI.showContextMenu();
+}
+
+document.addEventListener("contextmenu", requestContextMenu);
+document.addEventListener("auxclick", (e) => {
+  if (e.button === 2) requestContextMenu(e);
 });
 
 function signalPetHoverEnter(force = false) {
+  if (petHoverLeaveTimer) {
+    clearTimeout(petHoverLeaveTimer);
+    petHoverLeaveTimer = null;
+  }
   const t = Date.now();
+  if (petHovering) {
+    lastPetHoverSignalAt = t;
+    return;
+  }
   if (!force && t - lastPetHoverSignalAt < PET_HOVER_SIGNAL_MS) return;
+  petHovering = true;
   lastPetHoverSignalAt = t;
   if (window.hitAPI && window.hitAPI.petHoverEnter) window.hitAPI.petHoverEnter();
+}
+
+function signalPetHoverLeave() {
+  if (petHoverLeaveTimer) clearTimeout(petHoverLeaveTimer);
+  petHoverLeaveTimer = setTimeout(() => {
+    petHoverLeaveTimer = null;
+    if (!petHovering) return;
+    petHovering = false;
+    if (window.hitAPI && window.hitAPI.petHoverLeave) window.hitAPI.petHoverLeave();
+  }, PET_HOVER_LEAVE_DELAY_MS);
 }
 
 // --- Hover HUD (item 4): open the action toolbar when the cursor is on the pet.
@@ -279,5 +319,5 @@ area.addEventListener("pointermove", () => {
 });
 area.addEventListener("pointerleave", () => {
   if (isDragging) return;
-  if (window.hitAPI && window.hitAPI.petHoverLeave) window.hitAPI.petHoverLeave();
+  signalPetHoverLeave();
 });

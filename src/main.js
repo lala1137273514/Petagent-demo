@@ -3744,6 +3744,16 @@ function createWindow() {
     },
   });
 
+  setTimeout(() => {
+    try {
+      if (_glassboxHud && typeof _glassboxHud.preload === "function") {
+        _glassboxHud.preload();
+      }
+    } catch (err) {
+      sessionLog(`glassbox-hud: preload failed: ${err && err.message}`);
+    }
+  }, 550);
+
   // Event-level safety net for position sync
   win.on("move", () => { petWindowRuntime.syncFloatingWindowsAfterPetBoundsChange(); try { if (_glassboxBubble) _glassboxBubble.reposition(); } catch {} try { if (_glassboxFx) _glassboxFx.reposition(); } catch {} try { if (_quotaPopup) _quotaPopup.reposition(); } catch {} try { if (_glassboxCard) _glassboxCard.reposition(); } catch {} try { if (_glassboxHud) _glassboxHud.reposition(); } catch {} });
   win.on("resize", () => { petWindowRuntime.syncFloatingWindowsAfterPetBoundsChange(); try { if (_glassboxBubble) _glassboxBubble.reposition(); } catch {} try { if (_glassboxFx) _glassboxFx.reposition(); } catch {} try { if (_quotaPopup) _quotaPopup.reposition(); } catch {} try { if (_glassboxCard) _glassboxCard.reposition(); } catch {} try { if (_glassboxHud) _glassboxHud.reposition(); } catch {} });

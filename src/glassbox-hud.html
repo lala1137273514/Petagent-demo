@@ -31,15 +31,15 @@
     display: grid;
     gap: 7px;
     opacity: 0;
-    transform: translateY(10px) scale(0.965);
+    transform: translateY(6px) scale(0.982);
     transform-origin: bottom center;
-    transition: opacity 120ms ease-in, transform 120ms ease-in;
+    transition: opacity 90ms ease-in, transform 100ms ease-in;
     will-change: opacity, transform;
   }
   #hud.show {
     opacity: 1;
     transform: translateY(0) scale(1);
-    transition: opacity 190ms ease-out, transform 230ms cubic-bezier(0.16, 1, 0.28, 1);
+    transition: opacity 105ms ease-out, transform 155ms cubic-bezier(0.16, 1, 0.28, 1);
   }
 
   .hud-card {
@@ -54,13 +54,13 @@
     border-radius: 8px;
     box-shadow: 0 12px 30px rgba(0,0,0,0.30), 0 1px 0 rgba(255,255,255,0.055) inset;
     opacity: 0;
-    transform: translateY(8px);
-    transition: opacity 145ms ease, transform 180ms cubic-bezier(0.16, 1, 0.28, 1), border-color 120ms ease;
+    transform: translateY(5px);
+    transition: opacity 100ms ease, transform 135ms cubic-bezier(0.16, 1, 0.28, 1), border-color 100ms ease;
   }
   #hud.show .hud-card { opacity: 1; transform: translateY(0); }
-  #hud.show .status-card { transition-delay: 20ms; }
-  #hud.show .usage-card { transition-delay: 55ms; }
-  #hud.show .action-card { transition-delay: 90ms; }
+  #hud.show .status-card { transition-delay: 0ms; }
+  #hud.show .usage-card { transition-delay: 18ms; }
+  #hud.show .action-card { transition-delay: 34ms; }
 
   .card-head {
     display: flex;

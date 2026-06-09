@@ -155,6 +155,20 @@ function initGlassboxHud(ctx = {}) {
     }).catch(() => {});
   }
 
+  function preload() {
+    if (ctx.petHidden) return;
+    const w = ensure();
+    position();
+    const sendInitialContext = () => {
+      const sessionSnapshot = typeof ctx.getSessionSnapshot === "function"
+        ? ctx.getSessionSnapshot()
+        : null;
+      try { if (w && !w.isDestroyed()) w.webContents.send("glassbox-hud-context", { sessionSnapshot }); } catch {}
+    };
+    if (w.webContents.isLoading()) w.webContents.once("did-finish-load", sendInitialContext);
+    else sendInitialContext();
+  }
+
   function setInteractive(on) {
     if (!win || win.isDestroyed()) return;
     interactive = !!on;
@@ -245,6 +259,7 @@ function initGlassboxHud(ctx = {}) {
   return {
     show,
     refreshUsage,
+    preload,
     openPanel,
     renderCard,
     hideCard,

@@ -274,11 +274,17 @@ module.exports = function initMenu(ctx) {
     owner.setBounds({ x: cursor.x, y: cursor.y, width: 1, height: 1 });
     owner.show();
     keepOutOfTaskbar(owner);
+    if (isMac) {
+      try { ctx.reapplyMacVisibility(); } catch {}
+      try { if (typeof owner.moveTop === "function") owner.moveTop(); } catch {}
+    }
     owner.focus();
 
     ctx.menuOpen = true;
     menu.popup({
       window: owner,
+      x: 0,
+      y: 0,
       callback: () => {
         ctx.menuOpen = false;
         if (owner && !owner.isDestroyed()) owner.hide();
