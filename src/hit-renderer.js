@@ -42,6 +42,7 @@ let mouseDownX, mouseDownY;
 let lastDragClientX;
 let dragReactionDirection = null;
 let dragMoveRAF = null;
+let hoverLeaveDuringDrag = false;
 const DRAG_THRESHOLD = 3;
 
 // --- Reaction state (tracked here to gate input) ---
@@ -127,6 +128,7 @@ document.addEventListener("pointermove", (e) => {
 function stopDrag() {
   if (!isDragging) return;
   clearQueuedDragMove();
+  const shouldCheckHoverLeave = didDrag || hoverLeaveDuringDrag;
   isDragging = false;
   window.hitAPI.dragLock(false);
   area.classList.remove("dragging");
@@ -134,6 +136,8 @@ function stopDrag() {
     window.hitAPI.dragEnd();
   }
   endDragReaction();
+  if (shouldCheckHoverLeave) signalPetHoverLeave();
+  hoverLeaveDuringDrag = false;
 }
 
 document.addEventListener("pointerup", (e) => {
@@ -310,17 +314,6 @@ function signalPetHoverEnter(force = false) {
 }
 
 function signalPetHoverLeave(event) {
-  if (event && Number.isFinite(event.clientX) && Number.isFinite(event.clientY)) {
-    const pad = 18;
-    if (
-      event.clientX >= -pad
-      && event.clientX <= area.offsetWidth + pad
-      && event.clientY >= -pad
-      && event.clientY <= area.offsetHeight + pad
-    ) {
-      return;
-    }
-  }
   if (petHoverLeaveTimer) clearTimeout(petHoverLeaveTimer);
   petHoverLeaveTimer = setTimeout(() => {
     petHoverLeaveTimer = null;
@@ -342,6 +335,9 @@ area.addEventListener("pointermove", () => {
   if (!isDragging) signalPetHoverEnter(false);
 });
 area.addEventListener("pointerleave", (e) => {
-  if (isDragging) return;
+  if (isDragging) {
+    hoverLeaveDuringDrag = true;
+    return;
+  }
   signalPetHoverLeave(e);
 });

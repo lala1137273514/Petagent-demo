@@ -142,6 +142,11 @@ function createHarness({ isMac = false, sendState = {} } = {}) {
     if (cb) cb(eventPayload());
   }
 
+  function pointerleaveAt({ clientX = 100, clientY = 100 } = {}) {
+    const cb = area.listeners.get("pointerleave");
+    if (cb) cb(eventPayload({ clientX, clientY }));
+  }
+
   function contextmenu({ button = 2 } = {}) {
     fakeDocument._dispatch("contextmenu", eventPayload({ button }));
   }
@@ -167,6 +172,7 @@ function createHarness({ isMac = false, sendState = {} } = {}) {
     pointerup,
     pointerenter,
     pointerleave,
+    pointerleaveAt,
     contextmenu,
     auxclick,
     fireTimer,
@@ -336,6 +342,33 @@ describe("hit-renderer input layer", () => {
 
     h.pointerleave();
     h.fireTimer((t) => t.ms === 520);
+    assert.deepStrictEqual(
+      h.apiCalls.filter((call) => call[0] === "petHoverEnter" || call[0] === "petHoverLeave"),
+      [["petHoverEnter"], ["petHoverLeave"]]
+    );
+  });
+
+  it("still sends hover leave after a padded-edge leave instead of getting stuck", () => {
+    const h = createHarness();
+    h.pointerenter();
+    h.pointerleaveAt({ clientX: 100, clientY: 100 });
+    h.fireTimer((t) => t.ms === 520);
+
+    assert.deepStrictEqual(
+      h.apiCalls.filter((call) => call[0] === "petHoverEnter" || call[0] === "petHoverLeave"),
+      [["petHoverEnter"], ["petHoverLeave"]]
+    );
+  });
+
+  it("sends hover leave after a drag that leaves the pet", () => {
+    const h = createHarness();
+    h.pointerenter();
+    h.pointerdown({ clientX: 100, clientY: 100 });
+    h.pointermove({ clientX: 120, clientY: 100 });
+    h.pointerleave();
+    h.pointerup({ clientX: 120, clientY: 100 });
+    h.fireTimer((t) => t.ms === 520);
+
     assert.deepStrictEqual(
       h.apiCalls.filter((call) => call[0] === "petHoverEnter" || call[0] === "petHoverLeave"),
       [["petHoverEnter"], ["petHoverLeave"]]
