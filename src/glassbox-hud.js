@@ -43,6 +43,7 @@ function initGlassboxHud(ctx = {}) {
   let win = null;
   let dismissTimer = null;
   let collapseTimer = null;
+  let interactiveTimer = null;
   let interactive = false;
 
   function restorePetInputLayer() {
@@ -87,6 +88,13 @@ function initGlassboxHud(ctx = {}) {
 
   function cancelDismiss() {
     if (dismissTimer) { clearTimeout(dismissTimer); dismissTimer = null; }
+  }
+
+  function clearInteractiveTimer() {
+    if (interactiveTimer) {
+      clearTimeout(interactiveTimer);
+      interactiveTimer = null;
+    }
   }
 
   function pointInRect(point, rect, pad = 0) {
@@ -134,6 +142,7 @@ function initGlassboxHud(ctx = {}) {
         try { w.webContents.send("glassbox-hud-context", { sessionSnapshot }); } catch {}
         try { w.showInactive(); } catch {}
         try { w.webContents.send("glassbox-hud-show"); } catch {}
+        setInteractive(false);
         restorePetInputLayer();
       }
       // Usage strip data (cached, cheap) — pushed in so it shows with the toolbar.
@@ -171,10 +180,19 @@ function initGlassboxHud(ctx = {}) {
 
   function setInteractive(on) {
     if (!win || win.isDestroyed()) return;
-    interactive = !!on;
+    const next = !!on;
+    clearInteractiveTimer();
+    interactive = next;
     setMousePassthrough(!interactive);
-    try { win.setFocusable(interactive); } catch {}
-    restorePetInputLayer();
+    try { win.setFocusable(false); } catch {}
+    if (interactive) {
+      interactiveTimer = setTimeout(() => {
+        interactiveTimer = null;
+        setInteractive(false);
+      }, 900);
+    } else {
+      restorePetInputLayer();
+    }
   }
 
   function openPanel(panel) {
@@ -251,6 +269,7 @@ function initGlassboxHud(ctx = {}) {
 
   function cleanup() {
     cancelDismiss();
+    clearInteractiveTimer();
     if (collapseTimer) clearTimeout(collapseTimer);
     if (win && !win.isDestroyed()) win.destroy();
     win = null;

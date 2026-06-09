@@ -72,6 +72,9 @@ function initGlassboxCard(ctx = {}) {
       webPreferences: { nodeIntegration: true, contextIsolation: false, sandbox: false },
     });
     if (isWin) card.setAlwaysOnTop(true, "pop-up-menu");
+    try { card.setIgnoreMouseEvents(true, { forward: true }); } catch {
+      try { card.setIgnoreMouseEvents(true); } catch {}
+    }
     card.loadFile(path.join(__dirname, "glassbox-card.html"));
     card.on("closed", () => { card = null; });
     return card;
@@ -96,6 +99,9 @@ function initGlassboxCard(ctx = {}) {
     // current window.
     const wantsFocus = !!(payload && payload.mode === "permission");
     try { win.setFocusable(wantsFocus); } catch {}
+    try { win.setIgnoreMouseEvents(!wantsFocus, { forward: true }); } catch {
+      try { win.setIgnoreMouseEvents(!wantsFocus); } catch {}
+    }
     const send = () => {
       position();
       if (win && !win.isDestroyed()) {
@@ -124,6 +130,9 @@ function initGlassboxCard(ctx = {}) {
     if (card && !card.isDestroyed()) {
       try { card.webContents.send("glassbox-card-hide"); } catch {}
       try { card.setFocusable(false); } catch {}
+      try { card.setIgnoreMouseEvents(true, { forward: true }); } catch {
+        try { card.setIgnoreMouseEvents(true); } catch {}
+      }
       try { card.hide(); } catch {}
     }
   }

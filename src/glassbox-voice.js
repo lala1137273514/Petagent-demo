@@ -39,6 +39,11 @@ class GlassboxVoice {
       ? deps.resolveText
       : (text) => text;
     this.onSpeak = typeof deps.onSpeak === "function" ? deps.onSpeak : () => {};
+    this.sleep = typeof deps.sleep === "function"
+      ? deps.sleep
+      : (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const gap = Number(deps.playbackGapMs);
+    this.playbackGapMs = Number.isFinite(gap) && gap >= 0 ? gap : 180;
     this.speaking = false;
     this._inflight = null; // exposed for tests to await
   }
@@ -86,9 +91,27 @@ class GlassboxVoice {
         try { this.onSpeak(resolvedText, meta); } catch {}
         return this.synth(resolvedText);
       })
-      .then((audio) => { if (audio) this.play(audio); })
+      .then((audio) => {
+        if (!audio) return 0;
+        const played = this.play(audio);
+        return this._playbackHoldMs(played);
+      })
+      .then((holdMs) => {
+        if (holdMs > 0) return this.sleep(holdMs);
+        return undefined;
+      })
       .catch((err) => this.log(`glassbox-voice tts error: ${err && err.message}`))
       .finally(() => { this.speaking = false; });
+  }
+
+  _playbackHoldMs(value) {
+    const duration = typeof value === "number"
+      ? value
+      : value && typeof value.durationMs === "number"
+        ? value.durationMs
+        : 0;
+    if (!Number.isFinite(duration) || duration <= 0) return 0;
+    return Math.max(0, Math.min(15000, duration + this.playbackGapMs));
   }
 }
 

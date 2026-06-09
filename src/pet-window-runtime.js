@@ -498,8 +498,9 @@ function createPetWindowRuntime(options = {}) {
       enableLargerThanScreen: true,
       ...(isLinux ? { type: linuxWindowType } : {}),
       ...(isMac ? { type: "panel", roundedCorners: false } : {}),
-      // KEY EXPERIMENT: allow activation to avoid WS_EX_NOACTIVATE input
-      // routing bugs. Linux keeps the old non-focusable behavior.
+      // macOS starts focusable so the renderer can be materialized normally;
+      // after creation we make it non-focusable again so activation never
+      // steals drag gestures from the transparent hit layer.
       focusable: !isLinux,
       webPreferences: {
         preload: optionsArg.preloadPath,
@@ -514,6 +515,9 @@ function createPetWindowRuntime(options = {}) {
     // hitWin has no visual content, so clipping is irrelevant.
     hitWin.setShape([{ x: 0, y: 0, width: initialHitWindowBounds.width, height: initialHitWindowBounds.height }]);
     hitWin.setIgnoreMouseEvents(false); // PERMANENT: never toggle outside settings preview protection.
+    if (isMac && typeof hitWin.setFocusable === "function") {
+      try { hitWin.setFocusable(false); } catch {}
+    }
     hitWin.showInactive();
     keepOutOfTaskbar(hitWin);
     if (isWin) hitWin.setAlwaysOnTop(true, topmostLevel);

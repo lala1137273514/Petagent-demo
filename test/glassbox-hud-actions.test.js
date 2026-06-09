@@ -45,6 +45,11 @@ test("HUD exposes visible mock demo actions", () => {
   assert.match(html, /\.demo-action-btn/);
 });
 
+test("HUD only captures pointer input on actionable controls", () => {
+  assert.match(renderer, /closest\("button, \[role=\\"button\\"\], \.hud-btn, \.demo-action-btn"\)/);
+  assert.doesNotMatch(renderer, /closest\("\\.hud-card"\)/);
+});
+
 test("HUD no longer duplicates LLM/TTS/ASR setting shortcuts", () => {
   const block = extractButtonBlock();
   for (const id of ["llm", "tts", "asr"]) {

@@ -53,6 +53,9 @@ module.exports = function initGlassboxBubble(ctx = {}) {
       webPreferences: { nodeIntegration: true, contextIsolation: false, sandbox: false },
     });
     if (isWin) bubble.setAlwaysOnTop(true, "pop-up-menu");
+    try { bubble.setIgnoreMouseEvents(true, { forward: true }); } catch {
+      try { bubble.setIgnoreMouseEvents(true); } catch {}
+    }
     bubble.loadFile(path.join(__dirname, "glassbox-bubble.html"));
     bubble.on("closed", () => { bubble = null; });
     return bubble;

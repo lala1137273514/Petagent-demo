@@ -125,6 +125,22 @@ describe("glassbox-voice GlassboxVoice", () => {
     assert.strictEqual(plays.length, 1);
   });
 
+  it("keeps speech in flight for the reported playback duration", async () => {
+    const sleeps = [];
+    const { deps: d, plays } = deps({
+      play: (audio) => {
+        plays.push(audio);
+        return 1200;
+      },
+      sleep: async (ms) => { sleeps.push(ms); },
+      playbackGapMs: 300,
+    });
+    const v = new GlassboxVoice(d);
+    await v.speak("慢一点");
+    assert.deepStrictEqual(sleeps, [1500]);
+    assert.strictEqual(plays.length, 1);
+  });
+
   it("speak() ignores empty text", async () => {
     const { deps: d, plays } = deps();
     const v = new GlassboxVoice(d);

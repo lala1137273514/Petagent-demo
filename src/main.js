@@ -1723,6 +1723,14 @@ function refreshGlassboxMockHud() {
   } catch {}
 }
 
+function glassboxMockStepHoldMs(step) {
+  const base = Number.isFinite(step && step.holdMs) ? Math.max(0, step.holdMs) : 500;
+  const text = String((step && step.say) || "").trim();
+  if (!text) return Math.max(base, 900);
+  const speechFloor = Math.min(5200, Math.max(2200, 1500 + text.length * 95));
+  return Math.max(base, speechFloor);
+}
+
 async function playGlassboxMockScript(script, defaultCwd) {
   const steps = Array.isArray(script && script.steps) ? script.steps : [];
   let ran = 0;
@@ -1737,8 +1745,7 @@ async function playGlassboxMockScript(script, defaultCwd) {
       applyNarratorEffect({ source: "chat", kind: "reply", text: step.say });
     }
     ran += 1;
-    const holdMs = Number.isFinite(step && step.holdMs) ? Math.max(0, step.holdMs) : 500;
-    await new Promise((resolve) => setTimeout(resolve, holdMs));
+    await new Promise((resolve) => setTimeout(resolve, glassboxMockStepHoldMs(step)));
   }
   return { completed: !glassboxDemoCancel, ran };
 }
@@ -1751,7 +1758,7 @@ function runGlassboxMockDemo(action, text) {
   if (glassboxDemoRunning) {
     glassboxMockQueued = { action: route.action, text: route.text };
     glassboxDemoCancel = true;
-    applyNarratorEffect({ source: "chat", kind: "reply", text: "我先停掉上一段演示。" });
+    applyNarratorEffect({ source: "commentary", kind: "reply", text: "我先停掉上一段演示。" });
     return true;
   }
   glassboxMockQueued = null;
@@ -1777,7 +1784,7 @@ function runGlassboxMockDemo(action, text) {
       const queued = glassboxMockQueued;
       glassboxMockQueued = null;
       if (queued && queued.action) {
-        setTimeout(() => runGlassboxMockDemo(queued.action, queued.text), 40);
+        setTimeout(() => runGlassboxMockDemo(queued.action, queued.text), 260);
       }
     });
   return true;
@@ -1861,6 +1868,7 @@ if (glassboxEnabled) {
           const st = _speechReflection(undefined, cur);
           if (st && typeof setState === "function") setState(st);
         } catch {}
+        return durationMs;
       },
       shouldSpeakMilestone: (milestone) => {
         try {
@@ -3794,7 +3802,10 @@ function createWindow() {
     getCurrentState: () => _state.getCurrentState(),
     getCurrentSvg: () => _state.getCurrentSvg(),
     sendToRenderer,
-    setDragLocked: (value) => { petWindowRuntime.setDragLocked(value); },
+    setDragLocked: (value) => {
+      sessionLog(`pet-input: drag ${value ? "start" : "end"}`);
+      petWindowRuntime.setDragLocked(value);
+    },
     setMouseOverPet: (value) => { mouseOverPet = !!value; },
     beginDragSnapshot: () => beginDragSnapshot(),
     clearDragSnapshot: () => clearDragSnapshot(),

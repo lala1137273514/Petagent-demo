@@ -216,7 +216,7 @@ describe("pet-window-runtime", () => {
     assert.equal(instances[0].options.type, "toolbar");
   });
 
-  it("keeps macOS hit windows focusable so secondary clicks reach the renderer", () => {
+  it("keeps macOS hit windows non-focusable after creation so drags are stable", () => {
     const instances = [];
     const harness = createRuntime({ isWin: false, isMac: true });
 
@@ -228,7 +228,9 @@ describe("pet-window-runtime", () => {
     });
 
     assert.equal(instances[0].options.focusable, true);
-    assert.deepStrictEqual(instances[0].calls.filter((call) => call[0] === "setFocusable"), []);
+    assert.deepStrictEqual(instances[0].calls.filter((call) => call[0] === "setFocusable"), [
+      ["setFocusable", false],
+    ]);
   });
 
   it("raises the macOS hit window above the render window after creation and sync", () => {

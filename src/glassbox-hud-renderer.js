@@ -239,12 +239,19 @@ function setHudInteractive(on) {
 
 function updateInteractiveFromPoint(event) {
   const target = event && event.target;
-  setHudInteractive(!!(target && target.closest && target.closest(".hud-card")));
+  const interactiveTarget = target && target.closest
+    ? target.closest("button, [role=\"button\"], .hud-btn, .demo-action-btn")
+    : null;
+  setHudInteractive(!!interactiveTarget);
 }
 
 document.documentElement.addEventListener("mouseenter", () => ipcRenderer.send("glassbox-hud-hover", true));
 document.documentElement.addEventListener("mousemove", updateInteractiveFromPoint, true);
 document.documentElement.addEventListener("pointermove", updateInteractiveFromPoint, true);
+document.documentElement.addEventListener("pointerdown", updateInteractiveFromPoint, true);
+document.documentElement.addEventListener("click", () => {
+  setTimeout(() => setHudInteractive(false), 180);
+}, true);
 document.documentElement.addEventListener("mouseleave", () => {
   setHudInteractive(false);
   ipcRenderer.send("glassbox-hud-hover", false);

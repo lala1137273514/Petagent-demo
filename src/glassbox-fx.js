@@ -43,6 +43,9 @@ module.exports = function initGlassboxFx(ctx = {}) {
       webPreferences: { nodeIntegration: true, contextIsolation: false, sandbox: false },
     });
     if (isWin) fx.setAlwaysOnTop(true, "pop-up-menu");
+    try { fx.setIgnoreMouseEvents(true, { forward: true }); } catch {
+      try { fx.setIgnoreMouseEvents(true); } catch {}
+    }
     fx.loadFile(path.join(__dirname, "glassbox-fx.html"));
     fx.on("closed", () => { fx = null; });
     return fx;

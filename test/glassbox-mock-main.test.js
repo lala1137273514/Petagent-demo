@@ -18,6 +18,8 @@ test("main wires glassbox mock demo playback", () => {
   assert.match(main, /require\("\.\/glassbox-mock-demo"\)/);
   assert.match(main, /function runGlassboxMockDemo/);
   assert.match(main, /function playGlassboxMockScript/);
+  assert.match(main, /function glassboxMockStepHoldMs/);
+  assert.match(main, /speechFloor/);
   assert.match(main, /_state\.updateSession/);
 });
 
@@ -28,4 +30,3 @@ test("input submit routes demoAction before remote handling", () => {
   assert.match(handler, /!targetAgent && runGlassboxMockDemo\(null,\s*text\)/);
   assert.match(handler, /glassboxRemote\.dispatchToAgent/);
 });
-
