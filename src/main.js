@@ -60,6 +60,7 @@ const { focusCodexThreadTarget } = require("./session-focus-handoff");
 const { isSessionInProgress } = require("./state-session-snapshot");
 const { getAllAgents } = require("../agents/registry");
 const glassboxAgentLauncher = require("./glassbox-agent-launcher");
+const glassboxMockDemo = require("./glassbox-mock-demo");
 
 // ── Autoplay policy: allow sound playback without user gesture ──
 // MUST be set before any BrowserWindow is created (before app.whenReady)
@@ -259,7 +260,7 @@ function toggleGlassboxInput() {
   if (glassboxInputWin && !glassboxInputWin.isDestroyed()) { closeGlassboxInput(); return; }
   const pathMod = require("path");
   const w = new BrowserWindow({
-    width: 520, height: 176, frame: false, transparent: true, resizable: false,
+    width: 560, height: 188, frame: false, transparent: true, resizable: false,
     alwaysOnTop: true, skipTaskbar: true, show: false, fullscreenable: false, minimizable: false,
     // sandbox:false is REQUIRED for nodeIntegration's require() to work in the
     // inline script; with the Electron default (sandbox:true) the bar's JS would
@@ -326,6 +327,7 @@ const _pomodoro = createPomodoro({ focusMs: _pomFocusMs, breakMs: _pomBreakMs })
 let _pomodoroTimer = null;
 let glassboxDemoRunning = false;
 let glassboxDemoCancel = false;
+let glassboxMockQueued = null;
 const _glassboxDragNarration = _createDragNarration({
   speak: (line) => {
     try {
@@ -1664,6 +1666,102 @@ const _stateCtx = {
   },
 };
 const _state = require("./state")(_stateCtx);
+
+function applyGlassboxMockUpdate(update, defaultCwd) {
+  if (!update || typeof update !== "object") return;
+  const repeat = Math.max(1, Math.min(6, Number.isFinite(update.repeat) ? Math.floor(update.repeat) : 1));
+  const cwd = update.cwd || defaultCwd || getGlassboxDefaultCwd();
+  for (let i = 0; i < repeat; i += 1) {
+    try {
+      _state.updateSession(
+        update.id || `mock-${Date.now()}-${i}`,
+        update.state || "working",
+        update.event || "PreToolUse",
+        {
+          sourcePid: process.pid,
+          cwd,
+          agentId: update.agentId || "claude-code",
+          sessionTitle: update.sessionTitle || "Mock Demo",
+          toolName: update.toolName || null,
+          displayHint: update.displayHint,
+          headless: false,
+        },
+      );
+    } catch (err) {
+      sessionLog(`glassbox-mock: update failed: ${err && err.message}`);
+    }
+  }
+}
+
+function refreshGlassboxMockHud() {
+  try {
+    if (_glassboxHud) {
+      _glassboxHud.show();
+      _glassboxHud.refresh();
+    }
+  } catch {}
+}
+
+async function playGlassboxMockScript(script, defaultCwd) {
+  const steps = Array.isArray(script && script.steps) ? script.steps : [];
+  let ran = 0;
+  for (const step of steps) {
+    if (glassboxDemoCancel) return { completed: false, ran };
+    if (step && step.phase) relayGlassboxPhase(step.phase);
+    if (step && Array.isArray(step.updates)) {
+      for (const update of step.updates) applyGlassboxMockUpdate(update, defaultCwd);
+      refreshGlassboxMockHud();
+    }
+    if (step && step.say) {
+      applyNarratorEffect({ source: "chat", kind: "reply", text: step.say });
+    }
+    ran += 1;
+    const holdMs = Number.isFinite(step && step.holdMs) ? Math.max(0, step.holdMs) : 500;
+    await new Promise((resolve) => setTimeout(resolve, holdMs));
+  }
+  return { completed: !glassboxDemoCancel, ran };
+}
+
+function runGlassboxMockDemo(action, text) {
+  const route = glassboxMockDemo.ACTIONS.has(action)
+    ? { action, text: String(text || "") }
+    : glassboxMockDemo.routeMockCommand(text);
+  if (!route || route.action === "none") return false;
+  if (glassboxDemoRunning) {
+    glassboxMockQueued = { action: route.action, text: route.text };
+    glassboxDemoCancel = true;
+    applyNarratorEffect({ source: "chat", kind: "reply", text: "我先停掉上一段演示。" });
+    return true;
+  }
+  glassboxMockQueued = null;
+  const cwd = getGlassboxDefaultCwd();
+  const snapshot = (_state && typeof _state.buildSessionSnapshot === "function")
+    ? _state.buildSessionSnapshot()
+    : null;
+  const script = glassboxMockDemo.buildMockDemo(route.action, { query: route.text, snapshot, cwd });
+  glassboxDemoCancel = false;
+  glassboxDemoRunning = true;
+  sessionLog(`glassbox-mock: run action=${route.action} text=${String(route.text || "").slice(0, 80)}`);
+  Promise.resolve(playGlassboxMockScript(script, cwd))
+    .then((res) => {
+      if (!res || !res.completed) {
+        try { _glassboxBubble && _glassboxBubble.hide(); } catch {}
+      }
+    })
+    .catch((err) => sessionLog(`glassbox-mock: failed: ${err && err.message}`))
+    .finally(() => {
+      glassboxDemoRunning = false;
+      glassboxDemoCancel = false;
+      refreshGlassboxMockHud();
+      const queued = glassboxMockQueued;
+      glassboxMockQueued = null;
+      if (queued && queued.action) {
+        setTimeout(() => runGlassboxMockDemo(queued.action, queued.text), 40);
+      }
+    });
+  return true;
+}
+
 // Glass-box voice narration host (opt-in). Built here so sendToRenderer /
 // soundVolume / sessionLog are all defined; the snapshot tap in
 // broadcastSessionSnapshot above closes over the module-scope `glassboxVoice`.
@@ -1817,6 +1915,7 @@ if (glassboxEnabled) {
         // dispatch a host-agent run. An "answer" still can't be injected into a
         // running TUI, so it stays on the clipboard (honest, not faked).
         if (route.action === "task" && glassboxRemote) {
+          if (runGlassboxMockDemo(null, route.text)) return;
           Promise.resolve(glassboxRemote.handle(route.text))
             .catch((err) => sessionLog(`glassbox-remote: handle failed: ${err && err.message}`));
           return;
@@ -4097,10 +4196,20 @@ if (!gotTheLock) {
         const targetAgent = payload && (payload.targetAgent === "claude" || payload.targetAgent === "codex")
           ? payload.targetAgent
           : "";
-        sessionLog(`glassbox-input: submit len=${text.length} target=${targetAgent || "auto"} remote=${!!glassboxRemote}`);
+        const demoAction = payload && glassboxMockDemo.ACTIONS.has(payload.demoAction)
+          ? payload.demoAction
+          : "";
+        sessionLog(`glassbox-input: submit len=${text.length} target=${targetAgent || "auto"} demo=${demoAction || "-"} remote=${!!glassboxRemote}`);
         // Hand off to the pet: close the bar; the on-pet thought bubble carries
         // the live glass-box steps (thinking → … → done).
         closeGlassboxInput();
+        if (text && demoAction) {
+          runGlassboxMockDemo(demoAction, text);
+          return;
+        }
+        if (text && !targetAgent && runGlassboxMockDemo(null, text)) {
+          return;
+        }
         if (text && glassboxRemote) {
           Promise.resolve(targetAgent
             ? glassboxRemote.dispatchToAgent(text, targetAgent)

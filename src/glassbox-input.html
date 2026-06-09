@@ -107,14 +107,21 @@
   }
   #actions {
     margin-top: 8px;
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr auto;
     gap: 8px;
-    justify-content: flex-end;
+    align-items: center;
     -webkit-app-region: no-drag;
   }
-  .agent-btn {
+  #demoActions, #agentActions {
+    display: flex;
+    gap: 6px;
+    min-width: 0;
+  }
+  #demoActions { justify-content: flex-start; flex-wrap: wrap; }
+  #agentActions { justify-content: flex-end; }
+  .agent-btn, .demo-btn {
     height: 28px;
-    min-width: 78px;
     border: 1px solid rgba(255, 255, 255, 0.11);
     border-radius: 8px;
     cursor: pointer;
@@ -126,13 +133,20 @@
     letter-spacing: 0;
     transition: background 120ms ease, border-color 120ms ease, transform 120ms ease, color 120ms ease;
   }
-  .agent-btn:hover {
+  .agent-btn { min-width: 70px; }
+  .demo-btn {
+    min-width: 56px;
+    padding: 0 9px;
+    background: rgba(125, 211, 252, 0.08);
+    color: rgba(219, 244, 255, 0.92);
+  }
+  .agent-btn:hover, .demo-btn:hover {
     background: rgba(125, 211, 252, 0.16);
     border-color: rgba(125, 211, 252, 0.32);
     color: #fff;
     transform: translateY(-1px);
   }
-  .agent-btn:active { transform: translateY(0) scale(0.98); }
+  .agent-btn:active, .demo-btn:active { transform: translateY(0) scale(0.98); }
   #status.phase { color: rgba(248, 250, 252, 0.9); font-size: 12px; }
   #box.live {
     border-color: rgba(125, 211, 252, 0.40);
@@ -162,8 +176,16 @@
     </button>
   </div>
   <div id="actions">
-    <button class="agent-btn" id="sendClaude" title="把当前文本直接发送给 Claude 终端">Claude</button>
-    <button class="agent-btn" id="sendCodex" title="把当前文本直接发送给 Codex 终端">Codex</button>
+    <div id="demoActions">
+      <button class="demo-btn" id="mockProgress" title="Mock：询问当前项目 / Agent 会话进展">进展</button>
+      <button class="demo-btn" id="mockVoice" title="Mock：演示无 App、语音即按钮">语音流</button>
+      <button class="demo-btn" id="mockOrchestra" title="Mock：演示多 Agent 编排">编排</button>
+      <button class="demo-btn" id="mockShow" title="Mock：演示 Clawd 动画状态机">表演</button>
+    </div>
+    <div id="agentActions">
+      <button class="agent-btn" id="sendClaude" title="把当前文本直接发送给 Claude 终端">Claude</button>
+      <button class="agent-btn" id="sendCodex" title="把当前文本直接发送给 Codex 终端">Codex</button>
+    </div>
   </div>
   <div id="status"><kbd>Enter</kbd> 执行 · <kbd>Esc</kbd> 关闭 · 点麦克风说话，文字会填进来可改</div>
 </div>
@@ -173,8 +195,12 @@
   const mic = document.getElementById("mic");
   const sendClaude = document.getElementById("sendClaude");
   const sendCodex = document.getElementById("sendCodex");
+  const mockProgress = document.getElementById("mockProgress");
+  const mockVoice = document.getElementById("mockVoice");
+  const mockOrchestra = document.getElementById("mockOrchestra");
+  const mockShow = document.getElementById("mockShow");
   const statusEl = document.getElementById("status");
-  const DEFAULT_HINT = "Enter 执行 · Esc 关闭 · 点 🎙 说话，文字会填进来可改";
+  const DEFAULT_HINT = "Enter 执行 · Esc 关闭 · 点麦克风说话，文字会填进来可改";
   function setStatus(t) { statusEl.innerHTML = t; }
   ta.focus();
 
@@ -251,8 +277,17 @@
     else setStatus("派给 agent 中…");
     ipcRenderer.send("glassbox-input-submit", { text: t, targetAgent: targetAgent || "" });
   }
+  function submitDemo(demoAction, fallbackText) {
+    const t = ta.value.trim() || fallbackText;
+    setStatus("播放 Mock 演示中…");
+    ipcRenderer.send("glassbox-input-submit", { text: t, demoAction });
+  }
   sendClaude.onclick = () => submit("claude");
   sendCodex.onclick = () => submit("codex");
+  mockProgress.onclick = () => submitDemo("progress", "这个项目现在有哪些进程，进展如何？");
+  mockVoice.onclick = () => submitDemo("voice", "不用打开 App，怎么用语音玩 Agent？");
+  mockOrchestra.onclick = () => submitDemo("orchestra", "演示一下多 Agent 编排和监工。");
+  mockShow.onclick = () => submitDemo("show", "来一段动画状态机表演。");
 
   ipcRenderer.on("glassbox-input-transcript", (_e, p) => {
     if (p && p.error) {
