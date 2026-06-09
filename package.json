@@ -1,7 +1,7 @@
 {
-  "name": "clawd-on-desk",
-  "version": "0.8.1",
-  "description": "A desktop pet that reacts to your Claude Code sessions in real-time.",
+  "name": "kill-the-time-demo",
+  "version": "0.1.0",
+  "description": "A voice-first desktop pet demo for supervising agent work.",
   "main": "src/main.js",
   "scripts": {
     "start": "node scripts/ensure-sidecar-binaries.js && node launch.js",
@@ -10,6 +10,7 @@
     "build:win:arm64": "electron-builder --win nsis:arm64",
     "build:win:all": "electron-builder --win nsis:x64 nsis:arm64",
     "build:mac": "electron-builder --mac",
+    "build:demo:mac": "CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg --arm64 --publish never",
     "build:linux": "electron-builder --linux",
     "build:all": "electron-builder --win --mac --linux",
     "fetch:sidecars": "node scripts/fetch-sidecar-binaries.js",
@@ -51,23 +52,23 @@
     "electron",
     "claude-code"
   ],
-  "author": "rullerzhou-afk",
+  "author": "Jason",
   "license": "AGPL-3.0-only",
   "type": "commonjs",
   "build": {
-    "appId": "com.clawd.on-desk",
-    "productName": "Clawd on Desk",
+    "appId": "com.lala1137273514.killthetime.demo",
+    "productName": "Kill The Time Demo",
     "protocols": [
       {
-        "name": "Clawd Import Protocol",
+        "name": "Kill The Time Demo Protocol",
         "schemes": [
-          "clawd"
+          "killthetime"
         ]
       }
     ],
     "mac": {
       "icon": "assets/icon.png",
-      "artifactName": "Clawd-on-Desk-${version}-${arch}.${ext}",
+      "artifactName": "Kill-The-Time-Demo-${version}-${arch}.${ext}",
       "target": [
         {
           "target": "dmg",
@@ -85,7 +86,7 @@
     "win": {
       "icon": "assets/icon.ico",
       "signAndEditExecutable": false,
-      "artifactName": "Clawd-on-Desk-Setup-${version}-${arch}.${ext}",
+      "artifactName": "Kill-The-Time-Demo-Setup-${version}-${arch}.${ext}",
       "target": [
         {
           "target": "nsis",
@@ -97,10 +98,10 @@
       ]
     },
     "linux": {
-      "maintainer": "rullerzhou-afk <rullerzhou-afk@users.noreply.github.com>",
+      "maintainer": "Jason <lala1137273514@users.noreply.github.com>",
       "icon": "assets/icons",
       "category": "Utility",
-      "artifactName": "Clawd-on-Desk-${version}-${arch}.${ext}",
+      "artifactName": "Kill-The-Time-Demo-${version}-${arch}.${ext}",
       "target": [
         {
           "target": "AppImage",
