@@ -25,5 +25,14 @@ if [ ! -d "node_modules/electron" ]; then
   fi
 fi
 
-echo "Starting Kill The Time Demo..."
+if [ "$(uname -s)" = "Darwin" ]; then
+  ELECTRON_APP="$ROOT_DIR/node_modules/electron/dist/Electron.app"
+  if [ -d "$ELECTRON_APP" ]; then
+    echo "Starting Petagent Demo..."
+    open -n "$ELECTRON_APP" --args "$ROOT_DIR" "$@"
+    exit 0
+  fi
+fi
+
+echo "Starting Petagent Demo..."
 npm start -- "$@"

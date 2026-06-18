@@ -331,6 +331,7 @@ start-demo.bat
 ```
 
 这些脚本会检查 Node.js/npm，首次运行时自动安装依赖，然后复用项目已有启动命令。
+macOS 脚本会优先通过 `open` 拉起 Electron，避免从临时 shell 启动时父进程退出导致窗口闪退。
 
 源码启动需要本机已安装 Node.js/npm。macOS 如果提示脚本无权限，执行：
 

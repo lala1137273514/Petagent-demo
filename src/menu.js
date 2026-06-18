@@ -215,6 +215,7 @@ module.exports = function initMenu(ctx) {
   }
 
   function requestAppQuit() {
+    if (typeof ctx.logSession === "function") ctx.logSession("menu quit requested");
     ctx.isQuitting = true;
     app.quit();
   }
@@ -410,10 +411,6 @@ module.exports = function initMenu(ctx) {
         label: t("settings"),
         click: () => ctx.openSettingsWindow(),
       },
-    );
-    template.push(
-      { type: "separator" },
-      { label: t("quit"), click: () => requestAppQuit() },
     );
     ctx.contextMenu = Menu.buildFromTemplate(template);
   }

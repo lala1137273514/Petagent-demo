@@ -3403,6 +3403,7 @@ const _menuCtx = {
   getActiveThemeCapabilities: () => themeRuntime.getActiveThemeCapabilities(),
   ensureUserThemesDir: () => themeLoader.ensureUserThemesDir(),
   openSettingsWindow: () => settingsWindowRuntime.open(),
+  logSession: (msg) => sessionLog(msg),
 };
 const _menu = require("./menu")(_menuCtx);
 const { t, buildContextMenu, buildTrayMenu, rebuildAllMenus, createTray,
@@ -4065,6 +4066,7 @@ if (!gotTheLock) {
     const protocolRegistered = codexPetMain.registerProtocolClient();
     if (process.argv.includes(REGISTER_PROTOCOL_DEV_ARG)) {
       console.log(`Clawd: clawd:// dev protocol registration ${protocolRegistered ? "succeeded" : "failed"}`);
+      sessionLog("app quit requested: register protocol dev");
       app.quit();
       return;
     }
@@ -4309,6 +4311,7 @@ if (!gotTheLock) {
   });
 
   app.on("before-quit", () => {
+    sessionLog("app before-quit");
     isQuitting = true;
     try { stopUpdateScheduler(); } catch {}
     releasePowerSaveBlocker();
